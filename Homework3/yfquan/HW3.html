@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>
+        table {
+            width: 100%;
+            /* border: 1px solid black; */
+        }
+
+        h1 {
+            text-align: center;
+            font-family: 'Arial', sans-serif;
+        }
+
+        h2 {
+            text-align: center;
+            font-family: 'Verdana', sans-serif;
+            font-size: 30px;
+        }
+
+        p {
+            font-family: 'Times New Roman', serif;
+            font-size: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <table>
+
+        <!-- region of 1st graph -->
+        <tr>
+            <td></td>
+            <h1>Total Value of All Pokemons</h1>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <svg id="graph1"></svg>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <h2>motivation</h2>
+                <p>
+                    There are 721 pokemons in database, I draw a bar for each pokemon to display its value. The number
+                    of bars are huge, I cannot display in a single page, so I use an animation to roll these bars.
+                </p>
+                <hr />
+            </td>
+        </tr>
+        <!-- region of 2nd graph -->
+        <tr>
+            <td>
+                <h1>Select Pokemons with higher Attack or Sp_Atk</h1>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div style="display: flex;">
+                    <div style="flex: 7; padding: 10px;">
+                        <svg id="graph2"></svg>
+                    </div>
+                    <div style="flex: 3; padding: 10px;">
+                        <textarea id="textarea1" readonly="True"
+                            style="width: 100%; height: 100%; box-sizing: border-box; font-size: 20px;"></textarea>
+                    </div>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <h2>motivation</h2>
+                <p>
+                    As a pokemon fun, I like the pokemons with high attack or high sp_atk, and I believe that most of
+                    the funs are same with me. So, I draw a scatter chart to show the attack and sp_atk of each
+                    pokemons. Users can use mouse to select a square of region that contains pokemons, the name and
+                    number of them will be shown in the right textarea. </p>
+                <hr />
+            </td>
+        </tr>
+
+        <!-- region of 3rd graph -->
+        <tr>
+            <td>
+                <h1>6 Parameteres of my 10 Favorate Pokemons</h1>
+            </td>
+        </tr>
+        <tr>
+            <td> <svg id="graph3"></svg>
+                <hr />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <h2>motivation</h2>
+                <p>
+                    I select my favorate 10 pokemons. And I draw a parallel coordinates chart to show the 6 parameters
+                    of them. In this homework, I add zoom function to chart. User can use mouse wheel to zoom in/out the
+                    chart, and user can drag the chart vertically to move the chart to see the data clearly.</p>
+                <hr />
+            </td>
+        </tr>
+    </table>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script>
+        "use strict";
+
+        /**
+        * This function is used for draw a bar chart with animation
+        * @param {data} a list of dictionary, each of dictionary contains 3 keys: 
+        *    - name: string
+        *    - value: int
+        *    - generation: int
+        * @param {svg_id} id of svg.
+        * @param {width} canvas height
+        * @param {height} canvas height
+        * @returns none.
+        */
+        function drawBar(data, svg_id, width, height) {
+            d3.select(svg_id).selectAll("*").remove();
+            const svg = d3.select(svg_id)
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("style", "max-width: 100%; height: auto; background-color:rgb(240,255,240)");
+
+            // define x and y scale
+            const x_scale = d3.scaleLinear().domain([0, 10]).range([0, width - 200]);
+            const y_scale = d3.scaleLinear().domain([0, 800]).range([height - 200, 0]);
+
+            // generate x and y axis.
+            const x_axis = d3.axisBottom(x_scale)
+            x_axis.ticks(10).tickFormat(i => '');
+            const y_axis = d3.axisLeft(y_scale);
+
+            const mainGroup = svg.append("g").attr("transform", "translate(100, 100)");
+            const staticGroup = svg.append("g").attr("transform", "translate(100, 100)");
+
+            // draw x axis and x label
+            const gX = staticGroup.append("g")
+                .attr("transform", `translate(0, ${height - 200})`)
+                .call(x_axis)
+                .call(
+                    (g) => g.append("text")
+                        .attr("x", width / 2)
+                        .attr("y", 50)
+                        .attr("fill", "black")
+                        .attr("text-anchor", "end")
+                        .text("Pokemon Name")
+                )
+            gX.selectAll("text").style("font-size", "24px");
+
+            // draw y axis and y label
+            const gY = staticGroup.append("g")
+                .call(y_axis)
+                .call(
+                    (g) => g.append("text")
+                        .attr("x", 0)
+                        .attr("y", -20)
+                        .attr("text-anchor", "middle")
+                        .attr("fill", "black")
+                        .text("Total Value")
+                )
+            gY.selectAll("text").style("font-size", "24px");
+
+
+            // generate colors of each generation.
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+            const barWidth = x_scale(0.8);
+
+            // create a legend at right-top of canvas
+            const legend = svg
+                .append('g')
+                .attr("transform", `translate(${width - 200}, ${20})`);
+
+            // add each legend item
+            ['gen 1', 'gen 2', 'gen 3', 'gen 4', 'gen 5', 'gen 6']
+                .forEach((d, i) => {
+                    const item = legend.append('g').attr('transform', `translate(0, ${i * 25})`)
+
+                    // add cube with certain color.
+                    item.append('rect')
+                        .attr('x', 0).attr('y', 0)
+                        .attr("width", 20).attr("height", 20)
+                        .attr('fill', color(i + 1))
+
+                    // add legend text
+                    item.append('text')
+                        .attr('x', 25).attr('y', 15)
+                        .text(d).style("font-size", "24px");
+                })
+
+            const loopSecond = 20 * 60 * 1000; // each loop last 20 seconds
+
+            // create a function that generate animation
+            const generateAnimation = () => {
+
+                // animation of all bars
+                mainGroup
+                    .selectAll("rect")
+                    .data(data)
+                    .join("rect")
+                    .transition()
+                    .duration(loopSecond)
+                    .ease(d3.easeLinear)   // among linear, cubic, poly, sin, bounce, elastic
+                    .attr("x", (d, i) => x_scale(i + 1 - data.length + 10) - barWidth / 2)
+                    .attr("y", (d, i) => y_scale(d['value']))
+                    .attr("width", barWidth)
+                    .attr("height", (d, i) => y_scale(800 - d['value']))
+                    .attr('fill', (d, i) => color(d['generation']))
+
+                // reset animation of all bars
+                mainGroup
+                    .selectAll("rect")
+                    .data(data)
+                    .join("rect")
+                    .attr("x", (d, i) => x_scale(i + 1) - barWidth / 2)
+                    .attr("y", (d, i) => y_scale(d['value']))
+                    .attr("width", barWidth)
+                    .attr("height", (d, i) => y_scale(800 - d['value']))
+                    .attr('fill', (d, i) => color(d['generation']))
+
+                // animation of all text
+                mainGroup
+                    .selectAll("text")
+                    .data(data)
+                    .join("text")
+                    .transition()
+                    .duration(loopSecond)
+                    .ease(d3.easeLinear)   // among linear, cubic, poly, sin, bounce, elastic
+                    .attr("x", (d, i) => x_scale(i + 1 - data.length + 10))
+                    .attr("y", (d, i) => y_scale(d['value']) - 5)
+                    .text((d, i) => d['name'])
+                    .attr('fill', (d, i) => color(d['generation']))
+                    .attr("text-anchor", "middle") // start middle end
+                    .attr("font-size", "24px")
+
+                // reset animation of all text
+                mainGroup
+                    .selectAll("text")
+                    .data(data)
+                    .join("text")
+                    .attr("x", (d, i) => x_scale(i + 1))
+                    .attr("y", (d, i) => y_scale(d['value']) - 5)
+                    .text((d, i) => d['name'])
+                    .attr('fill', (d, i) => color(d['generation']))
+                    .attr("text-anchor", "middle") // start middle end
+                    .attr("font-size", "24px")
+            }
+
+            // create a timer, generate event every 20 seconds
+            generateAnimation();
+            var timer = setInterval(function () {
+                generateAnimation();
+            }, loopSecond + 500);
+        }
+
+        /**
+        * This function is used for draw a scatter chart with brush
+        * @param {data} a list of dictionary, each of dictionary contains 3 keys: 
+        *    - number: int
+        *    - name: string
+        *    - islegend: string
+        *    - attack: int
+        *    - sp_atk: int
+        * @param {svg_id} id of svg.
+        * @param {width} canvas height
+        * @param {height} canvas height
+        * @returns none.
+        */
+        function drawScatter(data, svg_id, width, height) {
+            d3.select(svg_id).selectAll("*").remove();
+            const svg = d3.select(svg_id)
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("style", "max-width: 100%; height: auto; background-color:rgb(240,255,240)");
+
+
+            // creata x and y scale
+            const x_scale = d3.scaleLinear().domain([0, 170]).range([0, width - 200]);
+            const y_scale = d3.scaleLinear().domain([0, 170]).range([height - 200, 0]);
+
+            // creata x and y axis
+            const x_axis = d3.axisBottom(x_scale)
+            const y_axis = d3.axisLeft(y_scale);
+
+            const mainGroup = svg.append("g").attr("transform", "translate(100, 100)");
+
+            // draw x axis and x label
+            const gX = mainGroup.append("g")
+                .attr("transform", `translate(0, ${height - 200})`)
+                .call(x_axis)
+                .call(
+                    (g) => g.append("text")
+                        .attr("x", (width - 200) / 2)
+                        .attr("y", 60)
+                        .attr("fill", "black")
+                        .attr("text-anchor", "middle") // start middle end
+                        .text("Attack")
+                )
+            gX.selectAll("text").style("font-size", "24px");
+
+            // draw y axis and y label
+            const gY = mainGroup.append("g")
+                .call(y_axis)
+                .call(
+                    (g) => g.append("text")
+                        .attr("text-anchor", "middle") // start middle end
+                        .attr("x", 0)
+                        .attr("y", -20)
+                        .attr("fill", "black")
+                        .text("Sp_Atk")
+                )
+            gY.selectAll("text").style("font-size", "24px");
+
+            // create a circle for each pokemon
+            const circle = mainGroup
+                .selectAll('circle')
+                .data(data)
+                .join('circle')
+                .attr('cx', (d) => x_scale(d['attack']))
+                .attr('cy', (d) => y_scale(d['sp_atk']))
+                .attr('r', 2)
+                .attr('fill', (d) => d['isLegend'] == 'True' ? 'red' : 'blue');
+
+            const textarea1 = document.getElementById("textarea1");
+            const brush = d3.brush()
+                .on("start brush end", (event) => {
+                    const selection = event.selection;
+                    if (selection == null) {
+
+                    } else {
+                        const [[x0, y0], [x1, y1]] = selection;
+
+                        // circle.attr('fill', (d) =>
+                        //     x0 <= x_scale(d['attack'])
+                        //         && x_scale(d['attack']) <= x1
+                        //         && y0 <= y_scale(d['sp_atk'])
+                        //         && y_scale(d['sp_atk']) <= y1
+                        //         ? 'green' : 'blue');
+
+                        var s = "";
+                        data.forEach((d) => {
+                            if (x0 <= x_scale(d['attack'])
+                                && x_scale(d['attack']) <= x1
+                                && y0 <= y_scale(d['sp_atk'])
+                                && y_scale(d['sp_atk']) <= y1) {
+                                s = s + `${d['number']}. ${d['name']}\n`;
+                            }
+                        })
+                        textarea1.value = s;
+
+                        circle.attr('r', (d) =>
+                            x0 <= x_scale(d['attack'])
+                                && x_scale(d['attack']) <= x1
+                                && y0 <= y_scale(d['sp_atk'])
+                                && y_scale(d['sp_atk']) <= y1
+                                ? 4 : 2);
+                    }
+
+                });
+            mainGroup.call(brush);
+
+            // create a legend at right-top of canvas
+            const legend = svg
+                .append('g')
+                .attr("transform", `translate(${width - 140}, ${20})`);
+
+            // add each legend item
+            [{ 'name': 'legend', 'color': 'red' }, { 'name': 'not legend', 'color': 'blue' }]
+                .forEach((d, i) => {
+                    const item = legend.append('g').attr('transform', `translate(0, ${i * 25})`)
+
+                    // add cube with certain color.
+                    item.append('rect')
+                        .attr('x', 0).attr('y', 0)
+                        .attr("width", 20).attr("height", 20)
+                        .attr('fill', d['color'])
+
+                    // add legend text
+                    item.append('text')
+                        .attr('x', 25).attr('y', 15)
+                        .text(d['name']).attr("style", "font-size:24px");
+
+                })
+        }
+
+        /**
+        * This function is used for draw a parallel coordinate chart.
+        * @param {favorate_pokemon} a list of selectecd pokemon in csv file.
+        * @param {svg_id} id of svg.
+        * @param {width} canvas height
+        * @param {height} canvas height
+        * @returns none.
+        */
+        function drawParallelCoordinates(favorate_pokemon, svg_id, width, height) {
+            d3.select(svg_id).selectAll("*").remove();
+            // set graph size.
+            const svg = d3.select(svg_id)
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("style", "max-width: 100%; height: auto; background-color:rgb(240,255,240)");
+
+            // define x and y scale
+            const property_array = ["HP", "Attack", "Defense", "Sp_Atk", "Sp_Def", "Speed", ""];
+            const x_scale = d3.scalePoint().domain(property_array).range([0, width - 200]);
+            const y_scale = d3.scaleLinear().domain([0, 160]).range([height - 200, 0]);
+
+            // generate x and y axis.
+            const x_axis = d3.axisBottom(x_scale);
+            const y_axis = d3.axisLeft(y_scale).ticks(10).tickSizeOuter(0);
+
+            const mainGroup = svg.append("g")
+                .attr("transform", "translate(100, 100)")
+            const staticGroup = svg.append("g")
+                .attr("transform", "translate(100, 100)")
+
+            // mainGroup.append('rect')
+            //     .attr('x', 0)
+            //     .attr('y', 0)
+            //     .attr('width', width - 200)
+            //     .attr('height', height - 200)
+            //     .attr("fill", "rgba(200,255,255, 255)");
+
+            // draw 6 vertical y axis
+            const gYs = [];
+            for (var r = 0; r < 6; r++) {
+                const gY = staticGroup
+                    .append("g")
+                    .attr("transform", `translate(${x_scale(property_array[r])}, 0)`)
+                    .call(y_axis)
+                gY.style("font-size", "24px")
+                gYs.push(gY);
+            }
+
+            // draw 1 horizontal x axis
+            const gX = staticGroup
+                .append("g")
+                .attr("transform", `translate(0, ${height - 200})`)
+                .call(x_axis)
+            gX.style("font-size", "24px");
+
+
+            // collect data into a 2D table, from csv file.
+            const points_table = [];
+            for (var pokemon of favorate_pokemon) {
+                const points_row = [];
+                points_row.push([x_scale("HP"), y_scale(parseInt(pokemon['HP']))]);
+                points_row.push([x_scale("Attack"), y_scale(parseInt(pokemon['Attack']))]);
+                points_row.push([x_scale("Defense"), y_scale(parseInt(pokemon['Defense']))]);
+                points_row.push([x_scale("Sp_Atk"), y_scale(parseInt(pokemon['Sp_Atk']))]);
+                points_row.push([x_scale("Sp_Def"), y_scale(parseInt(pokemon['Sp_Def']))]);
+                points_row.push([x_scale("Speed"), y_scale(parseInt(pokemon['Speed']))]);
+                points_table.push(points_row);
+            }
+
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+            for (var i = 0; i < favorate_pokemon.length; i++) {
+                const points_row = points_table[i];
+                // draw points
+                mainGroup
+                    .append("g")
+                    .selectAll('circle')
+                    .data(points_row)
+                    .join('circle')
+                    .attr('cx', (d, i) => { return d[0]; })
+                    .attr('cy', (d, i) => { return d[1]; })
+                    .attr('r', 6)
+                    .attr('fill', color(i))
+
+                // draw the line connect adjacent points.
+                var points_str = "";
+                for (var r = 0; r < 6; r++) {
+                    points_str = points_str + `${points_row[r][0]},${points_row[r][1]} `;
+                }
+                mainGroup
+                    .append("g")
+                    .append("polyline")
+                    .attr('points', points_str)
+                    .attr('fill', 'none')
+                    .attr('stroke', color(i))
+                    .attr('stroke-width', 3)
+            }
+
+            // create a legend at right-top of canvas
+            const legend = staticGroup
+                .append('g')
+                .attr("transform", `translate(${width - 300}, ${20})`)
+
+            // add each legend item
+            favorate_pokemon.forEach((d, i) => {
+                const item = legend.append('g').attr('transform', `translate(0, ${i * 25})`)
+
+                // add cube with certain color.
+                item.append('rect')
+                    .attr('x', 0).attr('y', 0)
+                    .attr("width", 20).attr("height", 20)
+                    .attr('fill', color(i))
+
+                // add legend text
+                item.append('text')
+                    .attr('x', 25).attr('y', 15)
+                    .text(`${d["Name"]}`)
+                    .style("font-size", "24px");
+
+            })
+
+            // add zoom events.
+            const zoom = d3.zoom().scaleExtent([0.5, 10])
+                .on('zoom', (event) => {
+                    const ytrans = d3.zoomIdentity
+                        .translate(0, event.transform.y)
+                        .scale(event.transform.k)
+
+                    mainGroup.attr("transform", `translate(100, 100) translate(${ytrans.x}, ${ytrans.y}) scale(${1},${ytrans.k})`);
+                    for (var gY of gYs) {
+                        gY.call(y_axis.scale(ytrans.rescaleY(y_scale)))
+                    }
+                });
+            svg.call(zoom);
+        }
+
+
+
+        // draw 3 graph.
+        async function init() {
+
+            const winWidth = window.innerWidth;
+            const winHeight = window.innerHeight;
+
+            // load data from csv.
+            let csv = await d3.csv('pokemon_alopez247.csv');
+            console.log(csv)
+
+
+            //-----------------------------------------------------------------
+            //          create bar chart with animation
+            //-----------------------------------------------------------------
+            const data1 = []
+            for (const record of csv) {
+                const number = parseInt(record['Number']) - 1;
+                const name = record['Name'];
+                const total = parseInt(record['Total']);
+                const generation = parseInt(record['Generation']);
+                data1.push({ 'name': name, 'value': total, 'generation': generation })
+            }
+
+            // draw bar chart with animation.
+            drawBar(data1, "#graph1", winWidth, winWidth / 2)
+
+            //-----------------------------------------------------------------
+            //          create scatter graph with brush
+            //-----------------------------------------------------------------
+
+            const data2 = [];
+            for (const record of csv) {
+                const number = parseInt(record['Number']);
+                const name = record['Name'];
+                const total = parseInt(record['Total']);
+
+                const attack = parseInt(record['Attack']);
+                const sp_atk = parseInt(record['Sp_Atk']);
+                const speed = parseInt(record['Speed']);
+
+                const isLegend = record['isLegendary']
+
+                const generation = parseInt(record['Generation']);
+                const weight = parseFloat(record['Weight_kg']);
+                const height = parseFloat(record['Height_m']);
+                data2.push({
+                    'number': number,
+                    'name': name,
+                    'isLegend': isLegend,
+                    'attack': attack,
+                    'sp_atk': sp_atk,
+                })
+            }
+
+            drawScatter(data2, '#graph2', winWidth, winWidth / 1.5)
+
+            //-----------------------------------------------------------------
+            //          create parallel coordinate graph with zoom
+            //-----------------------------------------------------------------
+
+            // indices of my 10 favorate pokemons
+            const favorate_index = [123, 130, 214, 330, 376, 445, 448, 468, 609, 637];
+
+            const favorate_pokemon = [];
+            for (const record of csv) {
+                const number = parseInt(record['Number']);
+                if (favorate_index.indexOf(number) != -1) {
+                    favorate_pokemon.push(record);
+                }
+            }
+
+            // draw parallel coordinate graph
+            drawParallelCoordinates(favorate_pokemon, "#graph3", winWidth, winWidth / 4 * 3)
+        }
+        init();
+        window.addEventListener('resize', init);
+    </script>
+</body>
+
+</html>
